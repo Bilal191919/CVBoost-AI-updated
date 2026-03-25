@@ -3,18 +3,12 @@ import { GoogleGenAI, Type, ThinkingLevel } from "@google/genai";
 import { extractTextFromPDF } from "./pdf";
 
 // We use import.meta.env for Vite client-side env vars
-let aiInstance: GoogleGenAI | null = null;
-
 function getAI() {
-  if (!aiInstance) {
-    // Try to get the key from Vite env vars first, fallback to process.env for server environments
-    const apiKey = import.meta.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      console.error("GEMINI_API_KEY is not defined. Please check your environment variables.");
-    }
-    aiInstance = new GoogleGenAI({ apiKey: apiKey || 'MISSING_API_KEY' });
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey || apiKey === "undefined") {
+    throw new Error(`API Key is missing or invalid: ${apiKey}`);
   }
-  return aiInstance;
+  return new GoogleGenAI({ apiKey });
 }
 
 export interface Suggestion {
@@ -55,7 +49,7 @@ export function handleGeminiError(error: any): never {
   }
   if (errorMessage.includes("401") || errorMessage.includes("403") || errorMessage.toLowerCase().includes("api key") || errorMessage.includes("API_KEY_INVALID")) {
     console.error("Original API Key Error:", errorMessage);
-    throw new Error("There is an issue with the AI service configuration (Invalid API Key). Please check your settings.");
+    throw new Error(`AI Service Error: ${errorMessage}`);
   }
   if (errorMessage.toLowerCase().includes("fetch failed") || errorMessage.toLowerCase().includes("network")) {
     throw new Error("Network error. Please check your internet connection and try again.");

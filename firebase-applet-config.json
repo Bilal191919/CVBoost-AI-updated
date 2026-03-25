@@ -1,10 +1,10 @@
 {
-  "projectId": "ai-studio-applet-webapp-ed034",
-  "appId": "1:151591919826:web:9097c18118126d1fbecd0b",
-  "apiKey": "AIzaSyBjKUXivlXPMOWUAtDKWLrw5ymrVFZ0cmE",
-  "authDomain": "ai-studio-applet-webapp-ed034.firebaseapp.com",
-  "firestoreDatabaseId": "ai-studio-845597cd-2e55-4cfa-95c5-bbbea19ff02a",
-  "storageBucket": "ai-studio-applet-webapp-ed034.firebasestorage.app",
-  "messagingSenderId": "151591919826",
-  "measurementId": ""
+  "projectId": "cv-boost-ai-1d836",
+  "appId": "1:105039101550:web:787becaa7be51a973d707f",
+  "apiKey": "AIzaSyBJtQDHGgAMBXoVd5g1eh7GoYt-aFbwUaY",
+  "authDomain": "cv-boost-ai-1d836.firebaseapp.com",
+  "firestoreDatabaseId": "(default)",
+  "storageBucket": "cv-boost-ai-1d836.firebasestorage.app",
+  "messagingSenderId": "105039101550",
+  "measurementId": "G-040J4NB271"
 }
