@@ -1,0 +1,193 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: userId
+    // Fields:
+    //   - email: string (required)
+    //   - displayName: string (optional)
+    //   - photoURL: string (optional)
+    //   - subscriptionTier: string (required, 'free' or 'pro')
+    //   - credits: number (required)
+    //   - createdAt: timestamp (required)
+    //
+    // Collection: analyses
+    // Document ID: auto-generated
+    // Fields:
+    //   - userId: string (required, immutable) - ID of the user who owns the analysis
+    //   - createdAt: timestamp (required, immutable) - When the analysis was created
+    //   - fileName: string (required) - Name of the uploaded CV file
+    //   - atsScore: number (required) - The calculated ATS score
+    //   - atsScoreBreakdown: map (optional) - Breakdown of the ATS score
+    //   - missingSkills: list of strings (required) - List of missing skills
+    //   - suggestions: list of objects (required) - List of improvement suggestions
+    //   - matchScore: number (optional) - The job match score
+    //   - jobDescription: string (optional) - The job description used for matching
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isDocOwner() {
+      return isAuthenticated() && request.auth.uid == resource.data.userId;
+    }
+
+    function uidUnchanged() {
+      return !('userId' in request.resource.data) || request.resource.data.userId == request.auth.uid;
+    }
+
+    function uidNotModified() {
+      return !('userId' in request.resource.data) || request.resource.data.userId == resource.data.userId;
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    function validStringLength(field, minLen, maxLen) {
+      return request.resource.data[field] is string &&
+        request.resource.data[field].size() >= minLen &&
+        request.resource.data[field].size() <= maxLen;
+    }
+
+    function isValidOptionalString(field, minLen, maxLen) {
+      return !(field in request.resource.data) ||
+             request.resource.data[field] == null ||
+             (request.resource.data[field] is string &&
+              request.resource.data[field].size() >= minLen &&
+              request.resource.data[field].size() <= maxLen);
+    }
+
+    function isValidOptionalNumber(field) {
+      return !(field in request.resource.data) || request.resource.data[field] == null || request.resource.data[field] is number;
+    }
+
+    function isValidOptionalMap(field) {
+      return !(field in request.resource.data) || request.resource.data[field] == null || request.resource.data[field] is map;
+    }
+
+    function areImmutableFieldsUnchanged(fields) {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(fields);
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (
+          (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin') ||
+          (request.auth.token.email == "bilalsarwar123r@gmail.com" && request.auth.token.email_verified == true)
+        );
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+    function isValidUser() {
+      let allowedFields = ['email', 'displayName', 'photoURL', 'subscriptionTier', 'credits', 'createdAt', 'role'];
+      return hasRequiredFields(['email', 'subscriptionTier', 'credits', 'createdAt']) &&
+             hasOnlyAllowedFields(allowedFields) &&
+             isValidEmail(request.resource.data.email) &&
+             request.resource.data.subscriptionTier in ['free', 'pro'] &&
+             request.resource.data.credits is number && request.resource.data.credits >= 0 &&
+             request.resource.data.createdAt is timestamp &&
+             isValidOptionalString('displayName', 1, 100) &&
+             isValidOptionalString('photoURL', 1, 2000) &&
+             (!('role' in request.resource.data) || request.resource.data.role in ['user', 'admin']);
+    }
+
+    function isValidAnalysis() {
+      let allowedFields = ['userId', 'createdAt', 'fileName', 'atsScore', 'atsScoreBreakdown', 'missingSkills', 'suggestions', 'matchScore', 'jobDescription', 'jobMatches', 'jobDescriptions'];
+      return hasRequiredFields(['userId', 'createdAt', 'fileName', 'atsScore', 'missingSkills', 'suggestions']) &&
+             hasOnlyAllowedFields(allowedFields) &&
+             request.resource.data.userId is string && request.resource.data.userId == request.auth.uid &&
+             request.resource.data.createdAt is timestamp &&
+             validStringLength('fileName', 1, 255) &&
+             request.resource.data.atsScore is number &&
+             isValidOptionalMap('atsScoreBreakdown') &&
+             request.resource.data.missingSkills is list && request.resource.data.missingSkills.size() <= 100 &&
+             request.resource.data.suggestions is list && request.resource.data.suggestions.size() <= 100 &&
+             isValidOptionalNumber('matchScore') &&
+             isValidOptionalString('jobDescription', 0, 10000) &&
+             (!('jobMatches' in request.resource.data) || request.resource.data.jobMatches is list) &&
+             (!('jobDescriptions' in request.resource.data) || request.resource.data.jobDescriptions is list);
+    }
+
+    function isValidPreferences() {
+      let allowedFields = ['userId', 'desiredRoles', 'locations', 'jobTypes', 'updatedAt'];
+      return hasRequiredFields(['userId', 'updatedAt']) &&
+             hasOnlyAllowedFields(allowedFields) &&
+             request.resource.data.userId is string && request.resource.data.userId == request.auth.uid &&
+             request.resource.data.updatedAt is timestamp &&
+             (!('desiredRoles' in request.resource.data) || (request.resource.data.desiredRoles is list && request.resource.data.desiredRoles.size() <= 20)) &&
+             (!('locations' in request.resource.data) || (request.resource.data.locations is list && request.resource.data.locations.size() <= 20)) &&
+             (!('jobTypes' in request.resource.data) || (request.resource.data.jobTypes is list && request.resource.data.jobTypes.size() <= 10));
+    }
+
+    function isValidJobSearch() {
+      let allowedFields = ['userId', 'query', 'location', 'createdAt'];
+      return hasRequiredFields(['userId', 'query', 'createdAt']) &&
+             hasOnlyAllowedFields(allowedFields) &&
+             request.resource.data.userId is string && request.resource.data.userId == request.auth.uid &&
+             request.resource.data.createdAt is timestamp &&
+             validStringLength('query', 1, 255) &&
+             isValidOptionalString('location', 0, 255);
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId) && isValidUser() && 
+                    request.resource.data.subscriptionTier == 'free' && 
+                    request.resource.data.credits <= 5 &&
+                    (!('role' in request.resource.data) || request.resource.data.role == 'user' || isAdmin());
+      allow update: if (isOwner(userId) || isAdmin()) && isValidUser() && 
+                    (isAdmin() || areImmutableFieldsUnchanged(['subscriptionTier', 'credits', 'createdAt', 'role']));
+      allow delete: if isOwner(userId) || isAdmin();
+    }
+
+    match /analyses/{analysisId} {
+      allow read: if isDocOwner();
+      allow create: if isAuthenticated() && isValidAnalysis() && uidUnchanged();
+      allow update: if isDocOwner() && isValidAnalysis() && uidNotModified() && areImmutableFieldsUnchanged(['userId', 'createdAt']);
+      allow delete: if isDocOwner();
+    }
+
+    match /preferences/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidPreferences();
+      allow update: if isOwner(userId) && isValidPreferences();
+      allow delete: if isOwner(userId);
+    }
+
+    match /savedSearches/{searchId} {
+      allow read: if isDocOwner();
+      allow create: if isAuthenticated() && isValidJobSearch() && uidUnchanged();
+      allow update: if isDocOwner() && isValidJobSearch() && uidNotModified() && areImmutableFieldsUnchanged(['userId', 'createdAt']);
+      allow delete: if isDocOwner();
+    }
+  }
+}

@@ -1,0 +1,5 @@
+{
+  "name": "Remix: CVBoost AI-Updated",
+  "description": "An AI tool that analyzes CVs, gives an ATS score, suggests improvements, and matches the CV with a job description.",
+  "requestFramePermissions": []
+}

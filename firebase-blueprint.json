@@ -1,0 +1,215 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "A user's profile and subscription data.",
+      "type": "object",
+      "properties": {
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "User's email address."
+        },
+        "displayName": {
+          "type": "string",
+          "description": "User's display name."
+        },
+        "photoURL": {
+          "type": "string",
+          "description": "User's profile picture URL."
+        },
+        "subscriptionTier": {
+          "type": "string",
+          "enum": ["free", "pro"],
+          "description": "The user's subscription tier."
+        },
+        "role": {
+          "type": "string",
+          "enum": ["user", "admin"],
+          "description": "The user's role."
+        },
+        "credits": {
+          "type": "number",
+          "description": "Number of credits remaining for free users."
+        },
+        "createdAt": {
+          "type": "timestamp",
+          "description": "When the user account was created."
+        }
+      },
+      "required": ["email", "subscriptionTier", "credits", "createdAt"]
+    },
+    "CVAnalysis": {
+      "title": "CV Analysis",
+      "description": "A saved CV analysis result for a user.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "The ID of the user who owns this analysis."
+        },
+        "createdAt": {
+          "type": "timestamp",
+          "description": "When the analysis was created."
+        },
+        "fileName": {
+          "type": "string",
+          "description": "The name of the uploaded CV file."
+        },
+        "atsScore": {
+          "type": "number",
+          "description": "The calculated ATS score."
+        },
+        "atsScoreBreakdown": {
+          "type": "object",
+          "properties": {
+            "keywordMatching": { "type": "number" },
+            "formatting": { "type": "number" },
+            "achievements": { "type": "number" }
+          },
+          "description": "Breakdown of the ATS score."
+        },
+        "missingSkills": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of missing skills."
+        },
+        "suggestions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "title": { "type": "string" },
+              "description": { "type": "string" },
+              "type": { "type": "string" },
+              "items": { "type": "array", "items": { "type": "string" } },
+              "examples": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "original": { "type": "string" },
+                    "improved": { "type": "string" }
+                  }
+                }
+              }
+            }
+          },
+          "description": "List of improvement suggestions."
+        },
+        "matchScore": {
+          "type": "number",
+          "description": "The job match score."
+        },
+        "jobDescription": {
+          "type": "string",
+          "description": "The job description used for matching."
+        },
+        "jobMatches": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "index": { "type": "number" },
+              "matchScore": { "type": "number" },
+              "matchSummary": {
+                "type": "array",
+                "items": { "type": "string" }
+              }
+            }
+          },
+          "description": "Match scores and summaries for multiple job descriptions."
+        },
+        "jobDescriptions": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "The job descriptions used for matching."
+        }
+      },
+      "required": ["userId", "createdAt", "fileName", "atsScore", "missingSkills", "suggestions"]
+    },
+    "ProfilePreferences": {
+      "title": "Profile Preferences",
+      "description": "User's job search preferences.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "The ID of the user."
+        },
+        "desiredRoles": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Roles the user is looking for."
+        },
+        "locations": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Preferred locations."
+        },
+        "jobTypes": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Preferred job types (e.g., Full-time, Remote)."
+        },
+        "updatedAt": {
+          "type": "timestamp",
+          "description": "When the preferences were last updated."
+        }
+      },
+      "required": ["userId", "updatedAt"]
+    },
+    "JobSearch": {
+      "title": "Saved Job Search",
+      "description": "A saved job search query.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "The ID of the user."
+        },
+        "query": {
+          "type": "string",
+          "description": "The search query."
+        },
+        "location": {
+          "type": "string",
+          "description": "The search location."
+        },
+        "createdAt": {
+          "type": "timestamp",
+          "description": "When the search was saved."
+        }
+      },
+      "required": ["userId", "query", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": {
+        "$ref": "#/entities/User"
+      },
+      "description": "Collection of user profiles."
+    },
+    "/analyses/{analysisId}": {
+      "schema": {
+        "$ref": "#/entities/CVAnalysis"
+      },
+      "description": "Collection of saved CV analyses."
+    },
+    "/preferences/{userId}": {
+      "schema": {
+        "$ref": "#/entities/ProfilePreferences"
+      },
+      "description": "Stores user profile preferences."
+    },
+    "/savedSearches/{searchId}": {
+      "schema": {
+        "$ref": "#/entities/JobSearch"
+      },
+      "description": "Stores saved job searches."
+    }
+  }
+}
