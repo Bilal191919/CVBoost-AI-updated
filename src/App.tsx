@@ -1601,8 +1601,7 @@ export default function App() {
                         Market Insights
                       </h3>
                       <p className="text-sm text-slate-600 mb-4 leading-relaxed">
-                        Get real-time job market trends and salary info using
-                        Google Search.
+                        Get real-time job market trends and salary info using AI analysis.
                       </p>
 
                       <div className="mb-4 flex gap-2">

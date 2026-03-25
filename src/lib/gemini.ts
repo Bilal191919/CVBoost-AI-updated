@@ -341,10 +341,8 @@ export async function getMarketInsights(query: string, refinement?: string) {
     Analyze the current, real-world job market for the following role/domain: ${query}
     ${refinement ? `Focus specifically on this refinement/location/criteria: ${refinement}` : ''}
     
-    Use Google Search to find the most up-to-date, authentic, and factual information.
-    
     CRITICAL AUTHENTICITY RULES:
-    1. Base your analysis STRICTLY on real-world data and the Google Search results. 
+    1. Base your analysis STRICTLY on real-world data and industry knowledge. 
     2. Do NOT hallucinate data, companies, or salary numbers. 
     3. If exact data is unavailable, state that it is unavailable or provide a verified industry average.
     4. Ensure the "inDemandSkills" are actually trending right now for this specific role.
@@ -363,7 +361,6 @@ export async function getMarketInsights(query: string, refinement?: string) {
       contents: prompt,
       config: {
         temperature: 0.2,
-        tools: [{ googleSearch: {} }],
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
@@ -385,7 +382,7 @@ export async function getMarketInsights(query: string, refinement?: string) {
     
     return {
       ...parsed,
-      groundingChunks: response.candidates?.[0]?.groundingMetadata?.groundingChunks || []
+      groundingChunks: []
     };
   } catch (error) {
     handleGeminiError(error);
