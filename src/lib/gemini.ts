@@ -273,6 +273,7 @@ ${safeJobDescs.map((jd, idx) => `--- Job Description ${idx} ---\n${jd}\n`).join(
 }
 
 export async function rewriteCV(originalText: string, suggestions: Suggestion[], missingSkills: string[]) {
+  const safeOriginalText = originalText ? originalText.substring(0, 15000) : '';
   const prompt = `
     You are an expert executive resume writer and ATS optimization specialist.
     I will provide you with an original CV text, a list of missing skills, and a list of improvement suggestions.
@@ -287,7 +288,7 @@ export async function rewriteCV(originalText: string, suggestions: Suggestion[],
     5. Ensure the final result is ready to be copied and pasted back into the user's original CV template without them having to reformat everything.
 
     ORIGINAL CV:
-    ${originalText}
+    ${safeOriginalText}
 
     MISSING SKILLS TO INTEGRATE:
     ${missingSkills.join(', ')}
@@ -298,7 +299,7 @@ export async function rewriteCV(originalText: string, suggestions: Suggestion[],
 
   try {
     const response = await getAI().models.generateContent({
-      model: "gemini-3.1-pro-preview",
+      model: "gemini-3-flash-preview",
       contents: prompt,
       config: { temperature: 0.4 }
     });
