@@ -25,13 +25,27 @@ export interface JobMatch {
   matchSummary: string[];
 }
 
+export interface SectionFeedback {
+  section: string;
+  score: number;
+  feedback: string;
+  suggestions: string[];
+}
+
 export interface AnalysisResult {
   atsScore: number;
   atsScoreBreakdown?: {
     keywordMatching: number; // out of 100
     formatting: number; // out of 100
     achievements: number; // out of 100
+    keywordFeedback?: string;
+    keywordSuggestions?: string[];
+    formattingFeedback?: string;
+    formattingSuggestions?: string[];
+    achievementsFeedback?: string;
+    achievementsSuggestions?: string[];
   };
+  sectionFeedback?: SectionFeedback[];
   missingSkills: string[];
   suggestions: Suggestion[];
   matchScore?: number;
@@ -87,9 +101,9 @@ ${safeJobDescs.map((jd, idx) => `--- Job Description ${idx} ---\n${jd}\n`).join(
     Analyze this CV with absolute strictness and 100% authenticity. You are an expert ATS (Applicant Tracking System) and senior technical recruiter.
     
     1. ATS score (0-100): Calculate this realistically based strictly on the following three components (which you must also provide in the atsScoreBreakdown):
-       - Keyword Matching (0-100): Overlap with the job description (if provided) or standard industry roles.
-       - Formatting (0-100): Readability, clear sections, absence of complex layouts that confuse parsers.
-       - Achievements (0-100): Impact metrics (reward quantified achievements like "% increased", "$ saved").
+       - Keyword Matching (0-100): Overlap with the job description (if provided) or standard industry roles. Provide tailored 'keywordFeedback' and 1-2 'keywordSuggestions'.
+       - Formatting (0-100): Readability, clear sections, absence of complex layouts that confuse parsers. Provide tailored 'formattingFeedback' and 1-2 'formattingSuggestions'.
+       - Achievements (0-100): Impact metrics (reward quantified achievements like "% increased", "$ saved"). Provide tailored 'achievementsFeedback' and 1-2 'achievementsSuggestions'.
        - The overall atsScore should be a weighted average of these three components. Do NOT give an arbitrarily high score. Be critical and authentic.
        
     2. Missing skills (list of strings): Identify missing skills ONLY by strictly comparing the CV text against the provided Job Description(s). 
@@ -101,6 +115,8 @@ ${safeJobDescs.map((jd, idx) => `--- Job Description ${idx} ---\n${jd}\n`).join(
        - You MUST include at least one suggestion of type 'summary' (providing 2-3 AI-generated alternative summary statements tailored EXACTLY to the CV's facts in the 'items' field).
        - You MUST include one of type 'achievements' (providing 2-3 examples of how to quantify their existing achievements in the 'examples' field). Do NOT make up numbers; show them how to structure the sentence (e.g., "Increased [metric] by [X]% by doing [action]").
        - Other suggestions can be of type 'general' (e.g., formatting, action verbs).
+       
+    4. Section-specific granular feedback: Provide detailed feedback and tailored suggestions for specific sections of the CV (e.g., "Education", "Experience", "Skills", "Summary"). Include a score (0-100) for each section.
        
     ${jdContext}
     
@@ -115,8 +131,22 @@ ${safeJobDescs.map((jd, idx) => `--- Job Description ${idx} ---\n${jd}\n`).join(
       "atsScoreBreakdown": {
         "keywordMatching": 80,
         "formatting": 90,
-        "achievements": 75
+        "achievements": 75,
+        "keywordFeedback": "Your CV matches most core requirements but misses some specific tools.",
+        "keywordSuggestions": ["Add 'React.js' instead of just 'React'"],
+        "formattingFeedback": "Clean layout, easy to parse.",
+        "formattingSuggestions": ["Avoid using tables for skills"],
+        "achievementsFeedback": "Good use of metrics in recent roles.",
+        "achievementsSuggestions": ["Quantify your impact in the first role"]
       },
+      "sectionFeedback": [
+        {
+          "section": "Experience",
+          "score": 70,
+          "feedback": "Your experience section lacks quantifiable achievements.",
+          "suggestions": ["Add metrics to your bullet points", "Use strong action verbs"]
+        }
+      ],
       "missingSkills": ["skill1", "skill2"],
       "suggestions": [
         {
@@ -253,7 +283,7 @@ export async function rewriteCV(originalText: string, suggestions: Suggestion[],
     1. CRITICAL: You MUST maintain the EXACT SAME structure, headings, and order as the original CV. Do not change the layout or the way sections are organized.
     2. Maintain the truthfulness of the original CV. Do not invent new jobs or degrees.
     3. Enhance the text within the existing sections (e.g., improving bullet points with action verbs, adding missing skills to the skills section or experience).
-    4. Format the output in clean, professional Markdown that mirrors the original structure.
+    4. Format the output in clean, professional Markdown that closely resembles the original structure. Preserve the original formatting (like bolding, italics, bullet points) as much as possible.
     5. Ensure the final result is ready to be copied and pasted back into the user's original CV template without them having to reformat everything.
 
     ORIGINAL CV:

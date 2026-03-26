@@ -118,7 +118,7 @@ service cloud.firestore {
     }
 
     function isValidAnalysis() {
-      let allowedFields = ['userId', 'createdAt', 'fileName', 'atsScore', 'atsScoreBreakdown', 'missingSkills', 'suggestions', 'matchScore', 'jobDescription', 'jobMatches', 'jobDescriptions'];
+      let allowedFields = ['userId', 'createdAt', 'fileName', 'atsScore', 'atsScoreBreakdown', 'sectionFeedback', 'missingSkills', 'suggestions', 'matchScore', 'jobDescription', 'jobMatches', 'jobDescriptions'];
       return hasRequiredFields(['userId', 'createdAt', 'fileName', 'atsScore', 'missingSkills', 'suggestions']) &&
              hasOnlyAllowedFields(allowedFields) &&
              request.resource.data.userId is string && request.resource.data.userId == request.auth.uid &&
@@ -126,6 +126,7 @@ service cloud.firestore {
              validStringLength('fileName', 1, 255) &&
              request.resource.data.atsScore is number &&
              isValidOptionalMap('atsScoreBreakdown') &&
+             (!('sectionFeedback' in request.resource.data) || request.resource.data.sectionFeedback is list) &&
              request.resource.data.missingSkills is list && request.resource.data.missingSkills.size() <= 100 &&
              request.resource.data.suggestions is list && request.resource.data.suggestions.size() <= 100 &&
              isValidOptionalNumber('matchScore') &&
