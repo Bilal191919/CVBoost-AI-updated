@@ -33,6 +33,7 @@ import {
   generateHotSeatQuestions,
   generateLinkedInProfile,
   getJobRecommendations,
+  rewriteCV,
   type AnalysisResult,
   type JobRecommendation,
 } from "./lib/gemini";
@@ -149,11 +150,16 @@ export default function App() {
   const [isGeneratingLinkedIn, setIsGeneratingLinkedIn] = useState(false);
   const [linkedInError, setLinkedInError] = useState<string | null>(null);
 
+  const [rewrittenCV, setRewrittenCV] = useState<string | null>(null);
+  const [isRewritingCV, setIsRewritingCV] = useState(false);
+  const [rewriteCVError, setRewriteCVError] = useState<string | null>(null);
+
   const [jobRecommendations, setJobRecommendations] = useState<JobRecommendation[] | null>(null);
   const [isGeneratingRecommendations, setIsGeneratingRecommendations] = useState(false);
   const [recommendationsError, setRecommendationsError] = useState<string | null>(null);
 
   const [copied, setCopied] = useState(false);
+  const [copiedRewrite, setCopiedRewrite] = useState(false);
   const [copiedSuggestion, setCopiedSuggestion] = useState<number | null>(null);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [checkoutSuccess, setCheckoutSuccess] = useState<string | null>(null);
@@ -532,6 +538,37 @@ export default function App() {
     } finally {
       setIsGeneratingRecommendations(false);
     }
+  };
+
+  const handleRewriteCV = async () => {
+    if (!result || !result.originalText) {
+      setRewriteCVError("Original CV text is missing. Please re-upload your CV.");
+      return;
+    }
+    setIsRewritingCV(true);
+    setRewriteCVError(null);
+    try {
+      const rewritten = await rewriteCV(result.originalText, result.suggestions, result.missingSkills);
+      setRewrittenCV(rewritten || null);
+    } catch (err: any) {
+      console.error("Rewrite CV Error:", err);
+      setRewriteCVError(err.message || "An error occurred while rewriting your CV.");
+    } finally {
+      setIsRewritingCV(false);
+    }
+  };
+
+  const handleDownloadRewrittenCV = () => {
+    if (!rewrittenCV) return;
+    const blob = new Blob([rewrittenCV], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "Rewritten_CV.txt";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   const handleGetMarketInsights = async (overrideRefinement?: string | React.MouseEvent) => {
@@ -1531,6 +1568,80 @@ export default function App() {
                     variants={itemVariants}
                     className="md:col-span-3 grid grid-cols-1 sm:grid-cols-2 gap-6 mt-2"
                   >
+                    <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 relative overflow-hidden group">
+                      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-400 to-emerald-600 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                      <h3 className="text-xl font-bold text-slate-900 mb-2 flex items-center gap-3 font-display">
+                        <div className="bg-emerald-100 p-2 rounded-xl text-emerald-600 shadow-sm">
+                          <Sparkles className="w-5 h-5" />
+                        </div>
+                        Auto-Rewrite CV
+                      </h3>
+                      <p className="text-sm text-slate-600 mb-6 leading-relaxed">
+                        Let AI automatically rewrite your CV to incorporate all the suggested improvements and missing skills.
+                      </p>
+                      {rewriteCVError && (
+                        <div className="mb-4 p-3 bg-red-50 text-red-700 text-sm rounded-xl border border-red-100 flex items-start gap-2">
+                          <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                          <p>{rewriteCVError}</p>
+                        </div>
+                      )}
+                      {isRewritingCV ? (
+                        <div className="w-full bg-emerald-50/50 border border-emerald-100 py-6 rounded-xl flex flex-col items-center justify-center">
+                          <GranularLoader
+                            messages={[
+                              "Analyzing original CV...",
+                              "Integrating missing skills...",
+                              "Enhancing bullet points...",
+                              "Formatting for ATS...",
+                              "Finalizing rewrite...",
+                            ]}
+                            colorClass="text-emerald-700"
+                            spinnerColorClass="text-emerald-600"
+                          />
+                        </div>
+                      ) : rewrittenCV ? (
+                        <div className="mt-4 flex flex-col gap-2">
+                          <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 prose prose-sm max-w-none max-h-60 overflow-y-auto">
+                            <Markdown>{rewrittenCV}</Markdown>
+                          </div>
+                          <div className="flex justify-end gap-3 mt-1">
+                            <button
+                              onClick={handleDownloadRewrittenCV}
+                              className="flex items-center gap-1.5 text-sm font-medium text-emerald-600 hover:text-emerald-700 transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500 rounded p-1"
+                              aria-label="Download rewritten CV"
+                            >
+                              <Download className="w-4 h-4" />
+                              Download TXT
+                            </button>
+                            <button
+                              onClick={() => {
+                                navigator.clipboard.writeText(rewrittenCV);
+                                setCopiedRewrite(true);
+                                setTimeout(() => setCopiedRewrite(false), 2000);
+                              }}
+                              className="flex items-center gap-1.5 text-sm font-medium text-emerald-600 hover:text-emerald-700 transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500 rounded p-1"
+                              aria-label="Copy rewritten CV"
+                            >
+                              {copiedRewrite ? (
+                                <CheckCircle className="w-4 h-4" />
+                              ) : (
+                                <Copy className="w-4 h-4" />
+                              )}
+                              {copiedRewrite ? "Copied!" : "Copy to Clipboard"}
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={handleRewriteCV}
+                          disabled={isRewritingCV}
+                          className="w-full bg-emerald-50 text-emerald-700 py-2.5 rounded-xl font-medium hover:bg-emerald-100 transition-colors flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                        >
+                          Rewrite Now
+                        </button>
+                      )}
+                    </div>
+
                     <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 relative overflow-hidden group">
                       <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-400 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                       <h3 className="text-xl font-bold text-slate-900 mb-2 flex items-center gap-3 font-display">

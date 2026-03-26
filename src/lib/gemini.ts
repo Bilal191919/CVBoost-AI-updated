@@ -38,6 +38,7 @@ export interface AnalysisResult {
   matchSummary?: string[];
   jobMatches?: JobMatch[];
   jobDescriptions?: string[];
+  originalText?: string;
 }
 
 export function handleGeminiError(error: any): never {
@@ -231,7 +232,47 @@ ${safeJobDescs.map((jd, idx) => `--- Job Description ${idx} ---\n${jd}\n`).join(
 
     const text = response.text || "{}";
     const cleanedText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-    return JSON.parse(cleanedText);
+    const parsed = JSON.parse(cleanedText);
+    return {
+      ...parsed,
+      originalText: cvContent
+    };
+  } catch (error) {
+    handleGeminiError(error);
+  }
+}
+
+export async function rewriteCV(originalText: string, suggestions: Suggestion[], missingSkills: string[]) {
+  const prompt = `
+    You are an expert executive resume writer and ATS optimization specialist.
+    I will provide you with an original CV text, a list of missing skills, and a list of improvement suggestions.
+    
+    Your task is to REWRITE the entire CV to incorporate these improvements and skills naturally.
+    
+    RULES:
+    1. CRITICAL: You MUST maintain the EXACT SAME structure, headings, and order as the original CV. Do not change the layout or the way sections are organized.
+    2. Maintain the truthfulness of the original CV. Do not invent new jobs or degrees.
+    3. Enhance the text within the existing sections (e.g., improving bullet points with action verbs, adding missing skills to the skills section or experience).
+    4. Format the output in clean, professional Markdown that mirrors the original structure.
+    5. Ensure the final result is ready to be copied and pasted back into the user's original CV template without them having to reformat everything.
+
+    ORIGINAL CV:
+    ${originalText}
+
+    MISSING SKILLS TO INTEGRATE:
+    ${missingSkills.join(', ')}
+
+    SUGGESTIONS TO APPLY:
+    ${suggestions.map(s => `- ${s.title}: ${s.description}`).join('\n')}
+  `;
+
+  try {
+    const response = await getAI().models.generateContent({
+      model: "gemini-3.1-pro-preview",
+      contents: prompt,
+      config: { temperature: 0.4 }
+    });
+    return response.text;
   } catch (error) {
     handleGeminiError(error);
   }
