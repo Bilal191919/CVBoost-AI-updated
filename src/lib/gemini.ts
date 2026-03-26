@@ -118,6 +118,8 @@ ${safeJobDescs.map((jd, idx) => `--- Job Description ${idx} ---\n${jd}\n`).join(
        
     4. Section-specific granular feedback: Provide detailed feedback and tailored suggestions for specific sections of the CV (e.g., "Education", "Experience", "Skills", "Summary"). Include a score (0-100) for each section.
        
+    ${!cvContent ? `5. Extracted Text: You MUST extract and return the full text of the CV in the 'extractedText' field. This is critical for downstream processing.` : ''}
+       
     ${jdContext}
     
     CRITICAL PARSING & AUTHENTICITY INSTRUCTIONS:
@@ -163,7 +165,7 @@ ${safeJobDescs.map((jd, idx) => `--- Job Description ${idx} ---\n${jd}\n`).join(
           "matchScore": 90,
           "matchSummary": ["Strong match for frontend skills", "Missing backend experience"]
         }
-      ]
+      ]${!cvContent ? `,\n      "extractedText": "Full text of the CV goes here..."` : ''}
     }
   `;
 
@@ -253,7 +255,8 @@ ${safeJobDescs.map((jd, idx) => `--- Job Description ${idx} ---\n${jd}\n`).join(
                 },
                 required: ["index", "matchScore", "matchSummary"]
               }
-            }
+            },
+            extractedText: { type: Type.STRING }
           },
           required: ["atsScore", "atsScoreBreakdown", "missingSkills", "suggestions"]
         }
@@ -265,14 +268,14 @@ ${safeJobDescs.map((jd, idx) => `--- Job Description ${idx} ---\n${jd}\n`).join(
     const parsed = JSON.parse(cleanedText);
     return {
       ...parsed,
-      originalText: cvContent
+      originalText: cvContent || parsed.extractedText || ""
     };
   } catch (error) {
     handleGeminiError(error);
   }
 }
 
-export async function rewriteCV(originalText: string, suggestions: Suggestion[], missingSkills: string[]) {
+export async function rewriteCV(originalText: string, suggestions: Suggestion[] = [], missingSkills: string[] = []) {
   const safeOriginalText = originalText ? originalText.substring(0, 15000) : '';
   const prompt = `
     You are an expert executive resume writer and ATS optimization specialist.
@@ -291,10 +294,10 @@ export async function rewriteCV(originalText: string, suggestions: Suggestion[],
     ${safeOriginalText}
 
     MISSING SKILLS TO INTEGRATE:
-    ${missingSkills.join(', ')}
+    ${(missingSkills || []).join(', ')}
 
     SUGGESTIONS TO APPLY:
-    ${suggestions.map(s => `- ${s.title}: ${s.description}`).join('\n')}
+    ${(suggestions || []).map(s => `- ${s.title}: ${s.description}`).join('\n')}
   `;
 
   try {
@@ -303,7 +306,19 @@ export async function rewriteCV(originalText: string, suggestions: Suggestion[],
       contents: prompt,
       config: { temperature: 0.4 }
     });
-    return response.text;
+    
+    if (!response.text) {
+      throw new Error("The AI was unable to generate a response. This might be due to safety filters or an unexpected model behavior. Please try again or modify your CV content.");
+    }
+    
+    let text = response.text;
+    if (text.startsWith('```markdown')) {
+      text = text.replace(/^```markdown\n?/, '').replace(/\n?```$/, '');
+    } else if (text.startsWith('```')) {
+      text = text.replace(/^```\n?/, '').replace(/\n?```$/, '');
+    }
+    
+    return text.trim();
   } catch (error) {
     handleGeminiError(error);
   }
